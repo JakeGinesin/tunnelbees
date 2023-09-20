@@ -8,11 +8,11 @@ import (
 	"fmt"
 	"log"
 	"net"
-  "encoding/binary"
+  // "encoding/binary"
 	"golang.org/x/crypto/ssh"
   "os"
-  "syscall"
-  "unsafe"
+  // "syscall"
+  // "unsafe"
   "io"
 )
 
@@ -149,7 +149,3 @@ func runShell(ch ssh.Channel, w int, h int) {
     cmd.Wait()
     ch.Close()
 }
-
-// SetWinsize as before...
-
-
