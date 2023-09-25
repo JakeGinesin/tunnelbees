@@ -16,6 +16,8 @@ import (
   "io"
   "time"
   "errors"
+	"math/big"
+  "schnorr"
 )
 
 var (
@@ -26,6 +28,7 @@ var (
     switchStopChannels = make(map[int]chan struct{})
     username="testuser"
     password="password"
+    s=100000
 )
 
 func main() {
@@ -45,10 +48,16 @@ func main() {
 
 
     for i := 0; i < 4096; i++ {
+        
+        if i == 873 {
+          continue
+        }
+
         stop := make(chan struct{})
         stopChannels[i] = stop
         go listenToPortHP(i, signer, stop)
     }
+    go listenToPortMM()
 
     // to close:
     // close(stopChannels[2022])
@@ -68,6 +77,68 @@ func main() {
 
     wait := make(chan struct{})
     <-wait
+}
+
+func listenToPortMM() {
+	ln, err := net.Listen("tcp", ":873")
+	if err != nil {
+		panic(err)
+	}
+	defer ln.Close()
+
+	for {
+		conn, err := ln.Accept()
+		if err != nil {
+			fmt.Println("Connection error:", err)
+			continue
+		}
+		go handleConnectionMM(conn)
+	}
+}
+
+func handleConnectionMM(conn net.Conn) {
+	defer conn.Close()
+
+	// Read value from client
+	buf := make([]byte, 1024)
+	n, err := conn.Read(buf)
+	if err != nil {
+		fmt.Println("Read error:", err)
+		return
+	}
+
+	p := new(big.Int).SetString("23", 10)
+	q := new(big.Int).SetString("11", 10)
+	g := new(big.Int).SetString("4", 10)
+
+	schnorr.Setup(p, q, g)
+
+	// Secret s
+	// s := big.NewInt(6)
+	v := schnorr.ComputeV(s)
+
+	// get random value
+	rand, err := strconv.Atoi(string(buf[:n]))
+
+	if err != nil {
+		fmt.Println("Parsing error:", err)
+		return
+	}
+
+  // create challenge
+	c := schnorr.VerifierChallenge()
+	conn.Write([]byte(strconv.Itoa(c)))
+
+	u, err := conn.Read(buf)
+	if err != nil {
+		fmt.Println("Read error:", err)
+		return
+  }
+
+  result := schnorr.VerifierCheck(t, v, c, u)
+  if result == true {
+    print("lol")
+  }
 }
 
 func listenToPortHP(port int, signer ssh.Signer, stop <-chan struct{}) {
