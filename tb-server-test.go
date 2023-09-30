@@ -17,7 +17,12 @@ import (
   "time"
   "errors"
 	"math/big"
-  "schnorr"
+	// "strconv"
+  "encoding/gob"
+  "tunnelbees/schnorr"
+	"crypto/sha256"
+	// "encoding/hex"
+  // "strings"
 )
 
 var (
@@ -28,7 +33,11 @@ var (
     switchStopChannels = make(map[int]chan struct{})
     username="testuser"
     password="password"
-    s=100000
+    p, _ = new(big.Int).SetString("12588057984461468961966693540164904601152983345615838509514868338002626947197477099497403176194401173056566443611515270833375716896028986193824336206303327", 10)
+    g, _ = new(big.Int).SetString("11179447687932368032971008183842477549658090437538077136108714448239465001794961282450659618511557431978875393280381023360031838986891268787469410372745240", 10)
+    x, _ = new(big.Int).SetString("6600495238930282724775951968977863908730082011153634922546217452020847861263182799684298041206237926208133583019216464197508425556590763281008607933597182", 10)
+    y = new(big.Int).Exp(g, x, p)
+    handshakePort = 312
 )
 
 func main() {
@@ -45,11 +54,9 @@ func main() {
 
     log.SetFlags(log.LstdFlags | log.Lmicroseconds)
 
-
-
     for i := 0; i < 4096; i++ {
         
-        if i == 873 {
+        if i == handshakePort {
           continue
         }
 
@@ -57,7 +64,7 @@ func main() {
         stopChannels[i] = stop
         go listenToPortHP(i, signer, stop)
     }
-    go listenToPortMM()
+    go listenToPortMM(handshakePort)
 
     // to close:
     // close(stopChannels[2022])
@@ -67,20 +74,36 @@ func main() {
     // stopChannels[2022] = stopq
     // go listenToPortHP(2022, signer, stopq)
 
-    go switchHP(66)
+    // go switchHP(66)
 
 
-	  time.Sleep(10 * time.Second)
-    go stopSwitchHP(66)
-
-    
+	  // time.Sleep(10 * time.Second)
+    // go stopSwitchHP(66)
 
     wait := make(chan struct{})
     <-wait
 }
 
-func listenToPortMM() {
-	ln, err := net.Listen("tcp", ":873")
+
+func hashWithSalt(secret, salt *big.Int) *big.Int {
+	// Convert big integers to byte slices
+	secretBytes := secret.Bytes()
+	saltBytes := salt.Bytes()
+
+	// Concatenate the byte slices
+	data := append(secretBytes, saltBytes...)
+
+	// Compute the SHA-256 hash
+	hash := sha256.Sum256(data)
+
+	// Convert the hash byte slice to a big.Int
+	result := new(big.Int).SetBytes(hash[:])
+
+	return result
+}
+
+func listenToPortMM(port int) {
+	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 	if err != nil {
 		panic(err)
 	}
@@ -99,46 +122,62 @@ func listenToPortMM() {
 func handleConnectionMM(conn net.Conn) {
 	defer conn.Close()
 
-	// Read value from client
-	buf := make([]byte, 1024)
-	n, err := conn.Read(buf)
+  decoder := gob.NewDecoder(conn)
+
+	// Receive public values and commitment from the client
+	var clientData struct {
+		// P *big.Int
+		// G *big.Int
+		// Y *big.Int
+		T *big.Int
+	}
+	err := decoder.Decode(&clientData)
 	if err != nil {
-		fmt.Println("Read error:", err)
+		fmt.Println("Error decoding client data:", err)
 		return
 	}
 
-	p := new(big.Int).SetString("23", 10)
-	q := new(big.Int).SetString("11", 10)
-	g := new(big.Int).SetString("4", 10)
-
-	schnorr.Setup(p, q, g)
-
-	// Secret s
-	// s := big.NewInt(6)
-	v := schnorr.ComputeV(s)
-
-	// get random value
-	rand, err := strconv.Atoi(string(buf[:n]))
-
+	// Generate and send challenge to the client
+	c := schnorr.VerifierChallenge(p)
+	encoder := gob.NewEncoder(conn)
+	err = encoder.Encode(c)
 	if err != nil {
-		fmt.Println("Parsing error:", err)
+		fmt.Println("Error encoding challenge:", err)
 		return
 	}
 
-  // create challenge
-	c := schnorr.VerifierChallenge()
-	conn.Write([]byte(strconv.Itoa(c)))
-
-	u, err := conn.Read(buf)
+	// Receive the response from the client
+	var s *big.Int
+	err = decoder.Decode(&s)
 	if err != nil {
-		fmt.Println("Read error:", err)
+		fmt.Println("Error decoding response:", err)
 		return
-  }
+	}
 
-  result := schnorr.VerifierCheck(t, v, c, u)
-  if result == true {
-    print("lol")
-  }
+	// Verify the response
+	result := schnorr.VerifierCheck(p, g, y, clientData.T, c, s)
+	if result {
+    // if it's successful, we:
+    // 1. permute clientData.T by mod 4096 wtv
+    // if port num is 53 or handshakePort we add by one
+    // 2. open port for actual ssh
+    // 3. close it in 5s or something
+    // port := hashWithSalt(clientData.T, x) % 4096
+    pq := new(big.Int)
+    pq.SetString("4096", 10)
+    port := int(hashWithSalt(clientData.T, x).Mod(hashWithSalt(clientData.T, x), pq).Int64())
+    if port == 53 || port == handshakePort { 
+      port++
+    }
+    go switchHP(port)
+
+		encoder.Encode("vs")
+
+	  time.Sleep(10 * time.Second)
+    go stopSwitchHP(port)
+	} else {
+		encoder.Encode("vf")
+	}
 }
 
 func listenToPortHP(port int, signer ssh.Signer, stop <-chan struct{}) {

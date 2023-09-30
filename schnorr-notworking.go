@@ -1,4 +1,4 @@
-package schnorr
+package schnorrbad
 
 import (
 	"crypto/rand"
