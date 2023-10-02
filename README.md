@@ -1,5 +1,5 @@
 # Tunnelbees
-Tunnelbees is a SSH honeypot that can securely let a client through given a shared secret. By default, the Tunnelbees server will open ports 1 through 4096 to a SSH honeypot. Through a zero-knowledge handshake, a client and the Tunnelbees server can agree on a temporary, random port to open to proper SSH. This scheme is designed to be resistant to a powerful attacker that can observe, analyze, and replay packets, as well as scan ports. 
+Tunnelbees is a SSH honeypot that can securely let a client through given a shared secret. By default, the Tunnelbees server will open ports 1 through 4096 to a SSH honeypot. Through a zero-knowledge handshake demonstrating shared knowledge of a secret, a client and the Tunnelbees server can agree on a temporary, random port to open to proper SSH. This scheme is designed to be resistant to a powerful attacker that can observe, analyze, and replay packets, as well as scan ports. 
 
 Tunnelbees uses Schnorr signatures for the interactive zero-knowledge scheme. Likewise, Tunnelbees relies on the discrete logarithm problem, so Shor's algorithm can efficiently crack this. When quantum supremacy? 
  
