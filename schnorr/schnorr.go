@@ -4,24 +4,25 @@ import (
 	"crypto/rand"
 	"fmt"
 	"math/big"
+  "tunnelbees/crypto"
 )
 
 func Keygen(bits int) (p, g, y, x *big.Int) {
 	p, _ = rand.Prime(rand.Reader, bits)
-	g = randomRange(big.NewInt(2), new(big.Int).Sub(p, big.NewInt(1)))
-	x = randomRange(big.NewInt(2), new(big.Int).Sub(p, big.NewInt(2)))
+	g = crypto.RandomRange(big.NewInt(2), new(big.Int).Sub(p, big.NewInt(1)))
+	x = crypto.RandomRange(big.NewInt(2), new(big.Int).Sub(p, big.NewInt(2)))
 	y = new(big.Int).Exp(g, x, p)
 	return
 }
 
 func ProverCommitment(p, g *big.Int) (t, r *big.Int) {
-	r = randomRange(big.NewInt(2), new(big.Int).Sub(p, big.NewInt(2)))
+	r = crypto.RandomRange(big.NewInt(2), new(big.Int).Sub(p, big.NewInt(2)))
 	t = new(big.Int).Exp(g, r, p)
 	return
 }
 
 func VerifierChallenge(p *big.Int) *big.Int {
-	return randomRange(big.NewInt(1), new(big.Int).Sub(p, big.NewInt(1)))
+	return crypto.RandomRange(big.NewInt(1), new(big.Int).Sub(p, big.NewInt(1)))
 }
 
 func ProverResponse(r, c, x, p *big.Int) *big.Int {
@@ -65,12 +66,6 @@ func schnorrProtocolPredefined(bits int, predefinedX *big.Int) {
     } else {
         fmt.Println("Verification failed")
     }
-}
-
-func randomRange(min, max *big.Int) *big.Int {
-	rangeInt := new(big.Int).Sub(max, min)
-	n, _ := rand.Int(rand.Reader, rangeInt)
-	return n.Add(n, min)
 }
 
 func main() {

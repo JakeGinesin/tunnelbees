@@ -20,7 +20,7 @@ import (
 	// "strconv"
   "encoding/gob"
   "tunnelbees/schnorr"
-	"crypto/sha256"
+  "tunnelbees/crypto"
 	// "encoding/hex"
   // "strings"
 )
@@ -66,40 +66,8 @@ func main() {
     }
     go listenToPortMM(handshakePort)
 
-    // to close:
-    // close(stopChannels[2022])
-
-    // to re-open:
-    // stopq := make(chan struct{})
-    // stopChannels[2022] = stopq
-    // go listenToPortHP(2022, signer, stopq)
-
-    // go switchHP(66)
-
-
-	  // time.Sleep(10 * time.Second)
-    // go stopSwitchHP(66)
-
     wait := make(chan struct{})
     <-wait
-}
-
-
-func hashWithSalt(secret, salt *big.Int) *big.Int {
-	// Convert big integers to byte slices
-	secretBytes := secret.Bytes()
-	saltBytes := salt.Bytes()
-
-	// Concatenate the byte slices
-	data := append(secretBytes, saltBytes...)
-
-	// Compute the SHA-256 hash
-	hash := sha256.Sum256(data)
-
-	// Convert the hash byte slice to a big.Int
-	result := new(big.Int).SetBytes(hash[:])
-
-	return result
 }
 
 func listenToPortMM(port int) {
@@ -157,15 +125,10 @@ func handleConnectionMM(conn net.Conn) {
 	// Verify the response
 	result := schnorr.VerifierCheck(p, g, y, clientData.T, c, s)
 	if result {
-    // if it's successful, we:
-    // 1. permute clientData.T by mod 4096 wtv
-    // if port num is 53 or handshakePort we add by one
-    // 2. open port for actual ssh
-    // 3. close it in 5s or something
-    // port := hashWithSalt(clientData.T, x) % 4096
+
     pq := new(big.Int)
     pq.SetString("4096", 10)
-    port := int(hashWithSalt(clientData.T, x).Mod(hashWithSalt(clientData.T, x), pq).Int64())
+    port := int(crypto.HashWithSalt(clientData.T, x).Mod(crypto.HashWithSalt(clientData.T, x), pq).Int64())
     if port == 53 || port == handshakePort { 
       port++
     }
@@ -351,8 +314,6 @@ func handleChannel(newChannel ssh.NewChannel) {
 
     runShell(channel, w, h)
 }
-
-// ...
 
 func runShell(ch ssh.Channel, w int, h int) {
     cmd := exec.Command("/bin/sh")

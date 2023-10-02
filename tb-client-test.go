@@ -6,26 +6,14 @@ import (
 	"math/big"
   "tunnelbees/schnorr"
   "encoding/gob"
-  // "golang.org/x/crypto/ssh"
-	"crypto/sha256"
+  "golang.org/x/crypto/ssh"
+	"io"
+	"os"
+	"golang.org/x/crypto/ssh/terminal"
+  "time"
+  "tunnelbees/crypto"
 )
 
-func hashWithSalt(secret, salt *big.Int) *big.Int {
-	// Convert big integers to byte slices
-	secretBytes := secret.Bytes()
-	saltBytes := salt.Bytes()
-
-	// Concatenate the byte slices
-	data := append(secretBytes, saltBytes...)
-
-	// Compute the SHA-256 hash
-	hash := sha256.Sum256(data)
-
-	// Convert the hash byte slice to a big.Int
-	result := new(big.Int).SetBytes(hash[:])
-
-	return result
-}
 
 // pre-shared values
 var (
@@ -33,6 +21,8 @@ var (
   g, _ = new(big.Int).SetString("11179447687932368032971008183842477549658090437538077136108714448239465001794961282450659618511557431978875393280381023360031838986891268787469410372745240", 10)
   x, _ = new(big.Int).SetString("6600495238930282724775951968977863908730082011153634922546217452020847861263182799684298041206237926208133583019216464197508425556590763281008607933597182", 10)
   handshakePort = 312
+  username="testuser"
+  host="localhost"
 )
 
 func main() {
@@ -43,17 +33,12 @@ func main() {
 	}
 	defer conn.Close()
 
-	// Client does the keygen
-	// _, _, _, _ := schnorr.Keygen(512)
-  // y := new(big.Int).Exp(g, x, p)  // Compute y using predefined x
 	t, r := schnorr.ProverCommitment(p, g)
 
 	encoder := gob.NewEncoder(conn)
+
 	// Send the commitment to the server
 	err = encoder.Encode(&struct {
-		// P *big.Int
-		// G *big.Int
-		// Y *big.Int
 		T *big.Int
 	}{t})
 
@@ -86,15 +71,74 @@ func main() {
   if verificationResult == "vs" {
     pq := new(big.Int)
     pq.SetString("4096", 10)
-    port := int(hashWithSalt(t, x).Mod(hashWithSalt(t, x), pq).Int64())
+    port := int(crypto.HashWithSalt(t, x).Mod(crypto.HashWithSalt(t, x), pq).Int64())
     if port == 53 || port == handshakePort { 
       port++
     }
-    // calculate the right port
 
-    fmt.Println("ssh open on port for 10s", port)
+    time.Sleep(2 * time.Second)
+
+    // SSH into the determined port
+    // super shit lol should be public key
+    sshConfig := &ssh.ClientConfig{
+        User: "testuser",
+        Auth: []ssh.AuthMethod{
+            ssh.Password("password"), // Replace 'your_password_here' with the actual password
+        },
+        HostKeyCallback: ssh.InsecureIgnoreHostKey(), // WARNING: This is insecure and should be replaced with proper host key verification for production
+    }
+
+    sshAddress := fmt.Sprintf("%s:%d", host, port) // Assuming localhost, replace '127.0.0.1' if needed
+    sshClient, err := ssh.Dial("tcp", sshAddress, sshConfig)
+    if err != nil {
+        panic(err)
+    }
+    defer sshClient.Close()
+
+		// Step 1: Create an SSH session
+		session, err := sshClient.NewSession()
+		if err != nil {
+			panic(err)
+		}
+		defer session.Close()
+
+		// Step 2: Setup terminal for interaction
+		fd := int(os.Stdin.Fd())
+		oldState, err := terminal.MakeRaw(fd)
+		if err != nil {
+			panic(err)
+		}
+		defer terminal.Restore(fd, oldState) // restore old terminal settings at the end
+
+		// Redirect IO for communication
+		session.Stdout = os.Stdout
+		session.Stderr = os.Stderr
+		session.Stdin = os.Stdin
+
+		// Create a terminal for this session.
+		termWidth, termHeight, err := terminal.GetSize(fd)
+		if err != nil {
+			termWidth = 80
+			termHeight = 24
+		}
+
+		// Request pty (pseudo terminal) in xterm with given dimensions
+		err = session.RequestPty("xterm", termHeight, termWidth, ssh.TerminalModes{})
+		if err != nil {
+			panic(err)
+		}
+
+		// Step 3: Start a shell
+		err = session.Shell()
+		if err != nil {
+			panic(err)
+		}
+
+		// Step 4: Wait until the session completes
+		err = session.Wait()
+		if err != nil && err != io.EOF {
+			panic(err)
+		}
 
   }
-
-
 }
