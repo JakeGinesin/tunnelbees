@@ -83,7 +83,7 @@ func main() {
     sshConfig := &ssh.ClientConfig{
         User: "testuser",
         Auth: []ssh.AuthMethod{
-            ssh.Password("password"), // Replace 'your_password_here' with the actual password
+            ssh.Password("password"), 
         },
         HostKeyCallback: ssh.InsecureIgnoreHostKey(), // WARNING: This is insecure and should be replaced with proper host key verification for production
     }

@@ -17,12 +17,9 @@ import (
   "time"
   "errors"
 	"math/big"
-	// "strconv"
   "encoding/gob"
   "tunnelbees/schnorr"
   "tunnelbees/crypto"
-	// "encoding/hex"
-  // "strings"
 )
 
 var (
@@ -41,8 +38,7 @@ var (
 )
 
 func main() {
-    // logPath := fmt.Sprintf("/var/log/babygorilla-%s.log", time.Now().Format("2006-01-02-15-04-05-000"))
-    logPath := fmt.Sprintf("/var/log/tunnelbees.log", time.Now().Format("2006-01-02-15-04-05-000"))
+    logPath := fmt.Sprintf("/var/log/tunnelbees-%s.log", time.Now().Format("2006-01-02-15-04-05-000"))
     logFile, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
     if err != nil {
         log.Println("Failed to open log file:", logPath, err)
@@ -94,9 +90,6 @@ func handleConnectionMM(conn net.Conn) {
 
 	// Receive public values and commitment from the client
 	var clientData struct {
-		// P *big.Int
-		// G *big.Int
-		// Y *big.Int
 		T *big.Int
 	}
 	err := decoder.Decode(&clientData)
@@ -236,8 +229,6 @@ func switchHP(port int) {
           if netErr, ok := err.(net.Error); ok && netErr.Temporary() {
               continue
           }
-          // This means the error is more serious and we should stop trying to accept connections.
-          // For instance, if our listener was closed.
           break
       }
 
