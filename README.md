@@ -14,3 +14,8 @@ Tunnelbees is inspired by the the Roman historian Appian. In his account of the 
 - The client and the server use a cryptographic function `f` to derive `N = f(s, R) mod 65535`
 - The server accepts SSH requests on `N`, the client connects on port `N`
 - Given `R` and `N`, the attacker cannot derive `s`.
+
+# Todo
+- [ ] actually implement a CLI
+- [ ] make a key generation script
+- [ ] fix performance issues
