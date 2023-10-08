@@ -91,3 +91,5 @@ $ go run tb-client.go -eport [HANDSHAKE_PORT] -username [USERNAME] -pass [PASSWO
 # Misc
 The name "tunnelbees" is inspired by the Roman historian Appian. In his account of the Third Mithridatic War, he writes:
 > With another army Lucullus besieged Themiscyra, which is named after one of the Amazons and is situated on the river Thermodon. The besiegers of this place brought up towers, built mounds, and dug tunnels so large that great subterranean battles could be fought in them. The inhabitants cut openings into these tunnels from above and thrust bears and other wild animals and swarms of bees into them against the workers. 
+
+Also ty [federico](https://github.com/cassanof) for the inspiration
