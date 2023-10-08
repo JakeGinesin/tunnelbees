@@ -8,26 +8,61 @@ import (
   "encoding/gob"
   "golang.org/x/crypto/ssh"
 	"io"
+	"io/ioutil"
 	"os"
 	"golang.org/x/crypto/ssh/terminal"
   "time"
   "tunnelbees/crypto"
+  "encoding/json"
+	"flag"
 )
 
 
 // pre-shared values
 var (
-	p, _ = new(big.Int).SetString("12588057984461468961966693540164904601152983345615838509514868338002626947197477099497403176194401173056566443611515270833375716896028986193824336206303327", 10)
-  g, _ = new(big.Int).SetString("11179447687932368032971008183842477549658090437538077136108714448239465001794961282450659618511557431978875393280381023360031838986891268787469410372745240", 10)
-  x, _ = new(big.Int).SetString("6600495238930282724775951968977863908730082011153634922546217452020847861263182799684298041206237926208133583019216464197508425556590763281008607933597182", 10)
-  handshakePort = 312
-  username="testuser"
-  host="localhost"
+  p, g, x *big.Int
 )
 
 func main() {
+  handshakePort := flag.Int("eport", 312, "specified port for ZK handshake")
+  username := flag.String("username", "testuser", "Username for SSH auth")
+  password := flag.String("pass", "password", "Password for SSH auth")
+  key := flag.String("key", "key.json", "Secret key for ZK handshake")
+  host := flag.String("host", "", "Host to be connected to (default \"localhost\") ")
 
-	conn, err := net.Dial("tcp", fmt.Sprintf(":%d", handshakePort))
+	flag.Usage = func() {
+		fmt.Fprintf(flag.CommandLine.Output(), "Usage of tb-client \n")
+		fmt.Println("Connects to a tb-server given a port")
+		flag.PrintDefaults()
+	}
+
+	flag.Parse()
+
+	if flag.Lookup("help") != nil || flag.Lookup("h") != nil {
+		flag.Usage()
+		return
+	}
+
+  data, err := ioutil.ReadFile(fmt.Sprintf("%s", *key))
+	if err != nil {
+		fmt.Println("Error reading file:", err)
+		return
+	}
+
+	// Unmarshal the JSON data into a map
+	values := make(map[string]string)
+	err = json.Unmarshal(data, &values)
+	if err != nil {
+		fmt.Println("Error unmarshalling JSON:", err)
+		return
+	}
+
+	// Convert the string values in the map back to *big.Int and assign to global variables
+	p, _ = new(big.Int).SetString(values["p"], 10)
+	g, _ = new(big.Int).SetString(values["g"], 10)
+	x, _ = new(big.Int).SetString(values["x"], 10)
+
+	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", *host, *handshakePort))
 	if err != nil {
 		panic(err)
 	}
@@ -72,7 +107,7 @@ func main() {
     pq := new(big.Int)
     pq.SetString("4096", 10)
     port := int(crypto.HashWithSalt(t, x).Mod(crypto.HashWithSalt(t, x), pq).Int64())
-    if port == 53 || port == handshakePort { 
+    if port == 53 || port == *handshakePort { 
       port++
     }
 
@@ -81,14 +116,14 @@ func main() {
     // SSH into the determined port
     // super shit lol should be public key
     sshConfig := &ssh.ClientConfig{
-        User: "testuser",
+        User: fmt.Sprintf("%s", *username),
         Auth: []ssh.AuthMethod{
-            ssh.Password("password"), 
+            ssh.Password(fmt.Sprintf("%s", *password)), 
         },
         HostKeyCallback: ssh.InsecureIgnoreHostKey(), // WARNING: This is insecure and should be replaced with proper host key verification for production
     }
 
-    sshAddress := fmt.Sprintf("%s:%d", host, port) // Assuming localhost, replace '127.0.0.1' if needed
+    sshAddress := fmt.Sprintf("%s:%d", *host, port) // Assuming localhost, replace '127.0.0.1' if needed
     sshClient, err := ssh.Dial("tcp", sshAddress, sshConfig)
     if err != nil {
         panic(err)

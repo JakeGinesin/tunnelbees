@@ -18,8 +18,12 @@ import (
   "errors"
 	"math/big"
   "encoding/gob"
+	"io/ioutil"
+  "encoding/json"
   "tunnelbees/schnorr"
   "tunnelbees/crypto"
+	"flag"
+  "sync"
 )
 
 var (
@@ -28,18 +32,57 @@ var (
     signer, _ = ssh.NewSignerFromSigner(privateKey)
     stopChannels = make(map[int]chan struct{})
     switchStopChannels = make(map[int]chan struct{})
-    username="testuser"
-    password="password"
-    p, _ = new(big.Int).SetString("12588057984461468961966693540164904601152983345615838509514868338002626947197477099497403176194401173056566443611515270833375716896028986193824336206303327", 10)
-    g, _ = new(big.Int).SetString("11179447687932368032971008183842477549658090437538077136108714448239465001794961282450659618511557431978875393280381023360031838986891268787469410372745240", 10)
-    x, _ = new(big.Int).SetString("6600495238930282724775951968977863908730082011153634922546217452020847861263182799684298041206237926208133583019216464197508425556590763281008607933597182", 10)
-    y = new(big.Int).Exp(g, x, p)
-    handshakePort = 312
+    handshakePort *int
+    username      *string
+    password      *string
+    p, g, x, y *big.Int
+    stopChannelsMutex sync.Mutex
 )
 
+
 func main() {
+
+    handshakePort = flag.Int("eport", 312, "specified port for ZK handshake")
+    username = flag.String("username", "testuser", "Username for SSH auth")
+    password = flag.String("pass", "password", "Password for SSH auth")
+    key := flag.String("key", "key.json", "Secret key for ZK handshake")
+
     logPath := fmt.Sprintf("/var/log/tunnelbees-%s.log", time.Now().Format("2006-01-02-15-04-05-000"))
     logFile, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+
+    flag.Usage = func() {
+      fmt.Fprintf(flag.CommandLine.Output(), "Usage of tb-client \n")
+      fmt.Println("Connects to a tb-server given a port")
+      flag.PrintDefaults()
+    }
+
+    flag.Parse()
+
+    if flag.Lookup("help") != nil || flag.Lookup("h") != nil {
+      flag.Usage()
+      return
+    }
+
+    data, err := ioutil.ReadFile(fmt.Sprintf("%s", *key))
+    if err != nil {
+      fmt.Println("Error reading file:", err)
+      return
+    }
+
+    // Unmarshal the JSON data into a map
+    values := make(map[string]string)
+    err = json.Unmarshal(data, &values)
+    if err != nil {
+      fmt.Println("Error unmarshalling JSON:", err)
+      return
+    }
+
+    p, _ = new(big.Int).SetString(values["p"], 10)
+    g, _ = new(big.Int).SetString(values["g"], 10)
+    x, _ = new(big.Int).SetString(values["x"], 10)
+
+    y = new(big.Int).Exp(g, x, p)
+
     if err != nil {
         log.Println("Failed to open log file:", logPath, err)
     } else {
@@ -52,7 +95,7 @@ func main() {
 
     for i := 0; i < 4096; i++ {
         
-        if i == handshakePort {
+        if i == *handshakePort {
           continue
         }
 
@@ -60,7 +103,7 @@ func main() {
         stopChannels[i] = stop
         go listenToPortHP(i, signer, stop)
     }
-    go listenToPortMM(handshakePort)
+    go listenToPortMM(*handshakePort)
 
     wait := make(chan struct{})
     <-wait
@@ -122,15 +165,17 @@ func handleConnectionMM(conn net.Conn) {
     pq := new(big.Int)
     pq.SetString("4096", 10)
     port := int(crypto.HashWithSalt(clientData.T, x).Mod(crypto.HashWithSalt(clientData.T, x), pq).Int64())
-    if port == 53 || port == handshakePort { 
+    if port == 53 || port == *handshakePort { 
       port++
     }
     go switchHP(port)
 
 		encoder.Encode("vs")
 
+    conn.Close()
 	  time.Sleep(10 * time.Second)
     go stopSwitchHP(port)
+
 	} else {
 		encoder.Encode("vf")
 	}
@@ -166,10 +211,16 @@ func listenToPortHP(port int, signer ssh.Signer, stop <-chan struct{}) {
     for {
         conn, err := listener.Accept()
         if err != nil {
+            if opErr, ok := err.(*net.OpError); ok && opErr.Op == "accept" {
+                // log.Println("listener closed, breaking out of the loop.")
+                break
+            }
+            log.Println("error accepting connection:", err)
             continue
         }
         go handleConnHP(conn, serverConfig)
     }
+
 }
 
 func passwordCallbackHP(conn ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
@@ -186,24 +237,20 @@ func switchHP(port int) {
   if stopChannels[port] == nil {
     return
   }
+  stopChannelsMutex.Lock()
   close(stopChannels[port])
   delete(stopChannels, port)
+  stopChannelsMutex.Unlock()
 
   // wait for sys to refresh so we can re-bind port
 	time.Sleep(1 * time.Second)
-
-  defer func(p int) {
-      stopq := make(chan struct{})
-      stopChannels[p] = stopq
-      go listenToPortHP(p, signer, stopq)
-  }(port)
 
   stopCh := make(chan struct{})
   switchStopChannels[port] = stopCh
 
 	hostConfig := &ssh.ServerConfig{
 		PasswordCallback: func(c ssh.ConnMetadata, pass []byte) (*ssh.Permissions, error) {
-			if c.User() == username && string(pass) == password {
+			if c.User() == *username && string(pass) == *password {
 				return nil, nil
 			}
 			return nil, fmt.Errorf("password rejected for %q", c.User())
@@ -214,6 +261,13 @@ func switchHP(port int) {
 
   listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 
+  defer func(p int) {
+      stopq := make(chan struct{})
+      stopChannels[p] = stopq
+      listener.Close()
+      go listenToPortHP(p, signer, stopq)
+  }(port)
+
   go func() {
       <-stopCh
       listener.Close()
@@ -223,18 +277,18 @@ func switchHP(port int) {
 		log.Fatalf("Failed to listen on %s (%v)", port, err)
 	}
 
+
   for {
       nConn, err := listener.Accept()
       if err != nil {
           if netErr, ok := err.(net.Error); ok && netErr.Temporary() {
+              nConn.Close()
               continue
           }
           break
       }
-
       go handleSSHConnection(nConn, hostConfig)
   }
-
 }
 
 func stopSwitchHP(port int) {
@@ -251,13 +305,15 @@ func handleSSHConnection(nConn net.Conn, config *ssh.ServerConfig) {
         return
     }
     log.Printf("New SSH connection from %s (%s)", conn.RemoteAddr(), conn.ClientVersion())
+    defer nConn.Close()
 
     for newChannel := range chans {
         if newChannel.ChannelType() != "session" {
             newChannel.Reject(ssh.UnknownChannelType, "unknown channel type")
             continue
+        } else {
+          go handleChannel(newChannel)
         }
-        go handleChannel(newChannel)
     }
 }
 

@@ -3,7 +3,7 @@ Tunnelbees is a SSH honeypot that can securely let a client through given a shar
 
 Tunnelbees uses Schnorr signatures for the interactive zero-knowledge scheme. Likewise, Tunnelbees relies on the discrete logarithm problem, so Shor's algorithm can efficiently crack this. When quantum supremacy? 
  
-Tunnelbees is inspired by the the Roman historian Appian. In his account of the Third Mithridatic War, he writes:
+Tunnelbees is inspired by the Roman historian Appian. In his account of the Third Mithridatic War, he writes:
 > With another army Lucullus besieged Themiscyra, which is named after one of the Amazons and is situated on the river Thermodon. The besiegers of this place brought up towers, built mounds, and dug tunnels so large that great subterranean battles could be fought in them. The inhabitants cut openings into these tunnels from above and thrust bears and other wild animals and swarms of bees into them against the workers. 
 
 # How it works (high-level)
@@ -16,6 +16,7 @@ Tunnelbees is inspired by the the Roman historian Appian. In his account of the 
 - Given `R` and `N`, the attacker cannot derive `s`.
 
 # Todo
-- [ ] actually implement a CLI
-- [ ] make a key generation script
-- [ ] fix performance issues
+- [x] actually implement a CLI
+- [x] make a key generation script
+- [x] fix performance issues
+- [ ] use public key crypto for auth
