@@ -57,7 +57,6 @@ func main() {
 		return
 	}
 
-	// Convert the string values in the map back to *big.Int and assign to global variables
 	p, _ = new(big.Int).SetString(values["p"], 10)
 	g, _ = new(big.Int).SetString(values["g"], 10)
 	x, _ = new(big.Int).SetString(values["x"], 10)

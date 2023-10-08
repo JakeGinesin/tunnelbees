@@ -38,6 +38,7 @@ func VerifierCheck(p, g, y, t, c, s *big.Int) bool {
 	return gs.Cmp(tc.Mod(tc, p)) == 0
 }
 
+// example 1
 func schnorrProtocol(bits int) {
 	p, g, y, x := Keygen(bits)
 	t, r := ProverCommitment(p, g)
@@ -51,6 +52,7 @@ func schnorrProtocol(bits int) {
 	}
 }
 
+// example 2
 func schnorrProtocolPredefined(bits int, predefinedX *big.Int) {
     // Assuming that the predefinedX is legitimate and lies between 2 and p-2
     p, g, y, _ := Keygen(bits)
@@ -68,6 +70,6 @@ func schnorrProtocolPredefined(bits int, predefinedX *big.Int) {
     }
 }
 
-func main() {
-	schnorrProtocol(256)
-}
+// func main() {
+// 	schnorrProtocol(256)
+// }

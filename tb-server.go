@@ -138,6 +138,7 @@ func handleConnectionMM(conn net.Conn) {
 	err := decoder.Decode(&clientData)
 	if err != nil {
 		fmt.Println("Error decoding client data:", err)
+    conn.Close()
 		return
 	}
 

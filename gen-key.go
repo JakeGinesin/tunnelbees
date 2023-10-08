@@ -18,11 +18,9 @@ type BigIntValues struct {
 }
 
 func main() {
-	// Define flags
 	filename := flag.String("file", "key.json", "Output filename for the JSON data")
 	bits := flag.Int("bits", 2048, "Number of bits for the prime generation")
 
-	// Override the default flag.Usage function
 	flag.Usage = func() {
 		fmt.Fprintf(flag.CommandLine.Output(), "Usage of gen-key.go \n")
 		fmt.Println("Generates a JSON file with random BigInt values for use in the Tunnelbees handshake.")
