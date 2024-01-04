@@ -51,8 +51,8 @@ func main() {
     logFile, err := os.OpenFile(logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
 
     flag.Usage = func() {
-      fmt.Fprintf(flag.CommandLine.Output(), "Usage of tb-client \n")
-      fmt.Println("Connects to a tb-server given a port")
+      fmt.Fprintf(flag.CommandLine.Output(), "Usage of tb-server \n")
+      fmt.Println("Sets up a tb-server")
       flag.PrintDefaults()
     }
 
