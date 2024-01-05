@@ -84,8 +84,8 @@ $ go run tb-client.go -eport [HANDSHAKE_PORT] -username [USERNAME] -pass [PASSWO
 - Given the publicly displayed values, `t`, `N`, `c`, and `p`, an attacker would have to go through the discrete logarithm problem to obtain `x`
 
 # Todo
-- [ ] make a "silent" ver that keeps no ports open by default
-- [ ] use randomly generated public key crypto for auth instead of user/password. can permute public key based on secret such that an attacker can't MITM insert their key.
+- [/] make a "silent" ver that keeps no ports open by default
+- [/] use randomly generated public key crypto for auth instead of user/password. can permute public key based on secret such that an attacker can't MITM insert their key.
 - [ ] if i'm bored, develop a formal model for the handshake
 
 # Misc
