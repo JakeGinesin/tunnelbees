@@ -157,7 +157,12 @@ func main() {
 		}
 
 		// Request pty (pseudo terminal) in xterm with given dimensions
-		err = session.RequestPty("xterm", termHeight, termWidth, ssh.TerminalModes{})
+
+    terminalType := os.Getenv("TERM")
+    if terminalType == "" {
+        terminalType = "xterm" // Default fallback
+    }
+		err = session.RequestPty(terminalType, termHeight, termWidth, ssh.TerminalModes{})
 		if err != nil {
 			panic(err)
 		}

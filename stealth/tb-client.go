@@ -4,16 +4,16 @@ import (
 	"fmt"
 	"net"
 	"math/big"
-  "tunnelbees/schnorr"
-  "encoding/gob"
-  "golang.org/x/crypto/ssh"
+	"tunnelbees/schnorr"
+	"encoding/gob"
+	"golang.org/x/crypto/ssh"
 	"io"
 	"io/ioutil"
 	"os"
 	"golang.org/x/crypto/ssh/terminal"
-  "time"
-  "tunnelbees/crypto"
-  "encoding/json"
+	"time"
+	"tunnelbees/crypto"
+	"encoding/json"
 	"flag"
 )
 
@@ -155,7 +155,11 @@ func main() {
 		// }
 
 		// Request pty (pseudo terminal) in xterm with given dimensions
-		err = session.RequestPty("xterm", termHeight, termWidth, ssh.TerminalModes{})
+    terminalType := os.Getenv("TERM")
+    if terminalType == "" {
+        terminalType = "xterm" // Default fallback
+    }
+		err = session.RequestPty(terminalType, termHeight, termWidth, ssh.TerminalModes{})
 		if err != nil {
 			panic(err)
 		}
